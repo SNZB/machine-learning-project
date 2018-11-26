@@ -56,32 +56,44 @@ def emission_parameter(data, k=1):
 emission_parameter(data_tuple('SG/train'))
 
 
+# function that estimates the transition parameters from the training set
+# using MLE (maximum likelihood estimation)
+# for any state w with previous two states u and v
+# q(w|u,v) = Count(u,v,w)/Count(u,v)
+# return: a dictionary with tuple of three states as key and their trans as value
 def transition_parameter(data):
-    tags = {}
-    transitions = {}
+    double_transitions = {} #(u,v)
+    triple_transitions = {} #(u,v,w)
 
     # processing data
     for lst in data:
 
-        previous = ''
+        # y-1 = y0 = START
+        prev_previous = ''
+        previous = '#START#'
         current = '#START#'
 
+        # starting from step 1 to step N
         for wordTuple in lst:
-            previous = current if (current != '#STOP#')
 
-            if lst.index(wordTuple) == len(lst)-1:
+            prev_previous = previous if (previous)
+            previous = current
+
+            if lst[-1] == wordTuple: # last item in lst
                 current = '#STOP#'
             else:
                 current = wordTuple[1]
 
-            tags[current] = tags.get(current,0) + 1
-            transitions[(previous,current)] = transitions.get((previous,current),0) + 1
+            double_transitions[(previous,current)] = transitions.get((previous,current),0) + 1
+            triple_transitions[(prev_previous,previous,current)] = transitions.get((prev_previous,previous,current),0) + 1
 
-    trans = {i: transitions[i]/tags[i[0]] for i in transitions} # key: StateTuple
+        # final step N+1 --> 'STOP'
+        double_transitions[(current,'#STOP#')] = transitions.get((current,'#STOP#'),0) + 1
+        triple_transitions[(previous,current,'#STOP#')] = transitions.get((previous,current,'#STOP#'),0) + 1
+    
+    trans = {i: triple_transitions[i]/tags[i[:2]] for i in triple_transitions}
 
     return trans
-
-transition_parameter(data_tuple('SG/train'))
 
 
 # Viterbi Algorithm
@@ -160,7 +172,7 @@ if __name__ == '__main__':
     observations, tags, em = emission_parameter(train)
     trans = transition_parameter(train)
 
-    for lst in data:
+    for lst in test_in:
 
         f = open('machine-learning-project/SG/dev.out')
 
